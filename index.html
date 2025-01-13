@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CheeseScraper</title>
+    <link rel="icon" href="http://127.0.0.1:3000/image" type="image/png">
+    <meta property="og:title" content="CheeseScraper">
+    <meta property="og:description" content="Scrapes and tracks cheese prices off the internet">
+    <meta property="og:image" content="http://127.0.0.1:3000/preview">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="http://127.0.0.1:3000">
+    <meta name="twitter:card" content="summary_large_image">
+</head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    #mainLayout{
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90%;
+        height: 90%;
+        height: clamp(100px,80%,500px);
+        overflow: visible;
+        display: flex;
+        flex-direction: column;
+        gap:3vw;
+    }
+    *{
+        overflow: hidden;
+    }
+    #title{
+        font-family: 'Courier New', Courier, monospace;
+        font-size: clamp(10px,5vw,40px);
+        font-weight: bolder;
+        text-align: center;
+        flex: 1;
+        flex-basis: 2.5vw;
+    }
+    #tagLayout{
+        display: flex;
+        width: 80%;
+        height: 100%;
+        gap: 4vw;
+        overflow: visible;  
+        flex-direction: row;
+    }
+    .tags{
+        flex: 1;
+        border: solid #919191 4px;
+        border-radius: 10px;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4);
+        display: flex;
+        flex-direction: column;
+        align-items:center;
+    }
+    #tagLayoutManagement{
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        flex: 10;
+        justify-content: center;
+        display: flex;
+    }
+    .tagTitles{
+        flex: 1;
+        font-size: 2vw;
+        font-weight: bold;
+        font-family: 'Courier New', Courier, monospace;
+        text-align: center;
+        margin-top: 2vw;
+        color: #393939;
+    }
+    #laDate{
+        font-family: 'Courier New', Courier, monospace;
+        font-size: clamp(5px,2vw,30px);
+        font-weight: bolder;
+        color: rgb(78, 78, 78);
+        text-align: center;
+        height: 30px;
+    }
+    .PPKg{
+        flex: 1;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: clamp(5px,2vw,30px);
+        font-weight: bolder;
+        color: #4e4e4e;
+        text-align: center;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+    .charts{
+        flex: 3; 
+        width: 90%;
+        height: 100%;
+        margin-bottom: 1vw;
+    }
+    @media (max-width: 768px) {
+        #tagLayout{
+            flex-direction: column;
+        }
+        .tags{
+            flex-direction: row;
+        }
+    }
+</style>
+<body>
+    <!--<h1>What's the price of cheese</h1>
+    <div></div>
+    <div></div>
+    <div></div>-->
+    <div id="mainLayout">
+        <div id="title">
+            What's the price of cheese?
+            <div id="laDate">
+                Issue 0{{edition}}: {{date}}
+            </div>
+        </div>
+        <div id="tagLayoutManagement">
+            <div id="tagLayout">
+                <div class="tags" id="WalmartContainer">
+                    <div class="tagTitles">
+                        Walmart
+                    </div>
+                    <div class="PPKg">
+                        ${{WalmartPricePerKg}} USD per kg
+                    </div>
+                    <div class="charts">
+                        <canvas id="walmartlineChart" ></canvas>
+                    </div>
+                </div>
+                <div class="tags" id="WoolworthsContainer">
+                    <div class="tagTitles">
+                        Woolworths
+                    </div>
+                    <div class="PPKg">
+                        ${{WoolworthsPricePerKg}} USD per kg
+                    </div>
+                    <div class="charts">
+                        <canvas id="woolworthslineChart" ></canvas>
+                    </div>
+                </div>
+                <div class="tags" id="CarrefourContainer">
+                    <div class="tagTitles">
+                        Carrefour (🇫🇷)
+                    </div>
+                    <div class="PPKg">
+                        ${{CarrefourPricePerKg}} USD per kg
+                    </div>
+                    <div class="charts">
+                        <canvas id="carrefourlineChart" ></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+</body>
+<script>
+    let date = '((date))'
+    let dates = [date.slice(0,5)];
+    let currentDate = new Date();
+    let currentYear = currentDate.getFullYear();
+    let [day, month, year] = date.split('/').map(num => parseInt(num));
+    let givenDate = new Date(year, month - 1, day);
+
+    for (let i = 1; i < 7; i++) {
+        let newDate = new Date(givenDate)
+        newDate.setDate(givenDate.getDate() - (7*i));
+        let resultDay = newDate.getDate().toString().padStart(2, '0');
+        let resultMonth = (newDate.getMonth() + 1).toString().padStart(2, '0');
+        let resultDate = `${resultDay}/${resultMonth}`;
+        dates.push(resultDate)
+    }
+
+    function resizeCanvas(chart) {
+        chart.resize();
+    }
+
+    const walmartChart = document.getElementById('walmartlineChart');
+
+    const walmartChartItem = new Chart(walmartChart.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: dates.reverse(),
+        datasets: [{
+          label: '$USD per KG',
+          data: [((walmartHistory))],
+          borderColor: '#4e4e4e',
+          backgroundColor: 'rgba(78, 78, 78,0)',
+          borderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 9,
+          pointHitRadius: 8,
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false,
+            position: 'top',
+            labels: {
+                font: {
+                    size: 10
+                }
+            },
+          },
+          tooltip: {
+            enabled: true,
+            displayColors: false,
+            caretPadding: 13,
+            callbacks: {
+                label: function(tooltipItem) {
+                    return '$' + tooltipItem.raw.toLocaleString() +' USD / Kg';
+                },
+            },
+            titleFont: {
+                family: 'Courier New',
+                size: 12,
+            },
+            bodyFont: {
+                family: 'Courier New',
+                weight: 'bold',
+            },
+
+
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true, // Start Y-axis at zero
+            ticks: {
+                maxTicksLimit: 5,
+                callback: function(value) {
+                    return '$' + value.toLocaleString();
+                },
+                font: {
+                    family: 'Courier New',
+                    weight: 'bold',
+                }
+            },
+          },
+          x: {
+            ticks:{
+                font: {
+                    family: 'Courier New',
+                    weight: 'bold',
+                }
+            }
+          }
+        }
+      }
+    });
+
+    const woolworthsChart = document.getElementById('woolworthslineChart');
+
+    const woolworthsChartItem = new Chart(woolworthsChart.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: dates.reverse(),
+        datasets: [{
+          label: '$USD per KG',
+          data: [((woolworthsHistory))],
+          borderColor: '#4e4e4e',
+          backgroundColor: 'rgba(78, 78, 78,0)',
+          borderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 9,
+          pointHitRadius: 8,
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false,
+            position: 'top',
+            labels: {
+                font: {
+                    size: 10
+                }
+            },
+          },
+          tooltip: {
+            enabled: true,
+            displayColors: false,
+            caretPadding: 13,
+            callbacks: {
+                label: function(tooltipItem) {
+                    return '$' + tooltipItem.raw.toLocaleString() +' USD / Kg';
+                },
+            },
+            titleFont: {
+                family: 'Courier New',
+                size: 12,
+            },
+            bodyFont: {
+                family: 'Courier New',
+                weight: 'bold',
+            },
+
+
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+                maxTicksLimit: 5,
+                callback: function(value) {
+                    return '$' + value.toLocaleString();
+                },
+                font: {
+                    family: 'Courier New',
+                    weight: 'bold',
+                }
+            },
+          },
+          x: {
+            ticks:{
+                font: {
+                    family: 'Courier New',
+                    weight: 'bold',
+                }
+            }
+          }
+        }
+      }
+    });
+
+    const carrefourChart = document.getElementById('carrefourlineChart');
+
+    const carrefourChartItem = new Chart(carrefourChart.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: dates.reverse(),
+        datasets: [{
+          label: '$USD per KG',
+          data: [((carrefourHistory))],
+          borderColor: '#4e4e4e',
+          backgroundColor: 'rgba(78, 78, 78,0)',
+          borderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 9,
+          pointHitRadius: 8,
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false,
+            position: 'top',
+            labels: {
+                font: {
+                    size: 10
+                }
+            },
+          },
+          tooltip: {
+            enabled: true,
+            displayColors: false,
+            caretPadding: 13,
+            callbacks: {
+                label: function(tooltipItem) {
+                    return '$' + tooltipItem.raw.toLocaleString() +' USD / Kg';
+                },
+            },
+            titleFont: {
+                family: 'Courier New',
+                size: 12,
+            },
+            bodyFont: {
+                family: 'Courier New',
+                weight: 'bold',
+            },
+
+
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true, // Start Y-axis at zero
+            ticks: {
+                maxTicksLimit: 5,
+                callback: function(value) {
+                    return '$' + value.toLocaleString();
+                },
+                font: {
+                    family: 'Courier New',
+                    weight: 'bold',
+                }
+            },
+          },
+          x: {
+            ticks:{
+                font: {
+                    family: 'Courier New',
+                    weight: 'bold',
+                }
+            }
+          }
+        }
+      }
+    });
+
+    resizeCanvas(walmartChartItem);
+    resizeCanvas(woolworthsChartItem);
+    resizeCanvas(carrefourChartItem);
+    window.addEventListener('resize',()=>{resizeCanvas(walmartChartItem)});
+    window.addEventListener('resize',()=>{resizeCanvas(woolworthsChartItem)});
+    window.addEventListener('resize',()=>{resizeCanvas(carrefourChartItem)});
+</script>
+</html>
